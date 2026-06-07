@@ -28,6 +28,15 @@ router.get('/test', (req, res) => {
   res.json({ ok: true, message: 'Gmail routes are reachable', timestamp: new Date().toISOString() });
 });
 
+router.get('/test-uri', async (req, res) => {
+  const callbackUrl = 'https://7b1fb97b-a071-4e3a-bf8e-54e97d032703-00-1p2nrmvk9uxhl.riker.replit.dev:3000/api/gmail/callback'
+  res.json({
+    callback_url: callbackUrl,
+    google_client_id: process.env.GOOGLE_CLIENT_ID ? process.env.GOOGLE_CLIENT_ID.substring(0, 20) + '...' : 'NOT FOUND',
+    google_client_secret: process.env.GOOGLE_CLIENT_SECRET ? 'FOUND' : 'NOT FOUND'
+  })
+});
+
 router.get('/connect', verifyToken, async (req, res) => {
   const callbackUrl = 'https://7b1fb97b-a071-4e3a-bf8e-54e97d032703-00-1p2nrmvk9uxhl.riker.replit.dev:3000/api/gmail/callback'
 
