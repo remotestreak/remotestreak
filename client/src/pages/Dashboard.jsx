@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import { supabase } from '../supabaseClient'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -8,18 +9,28 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const token = localStorage.getItem('remotestreak_token')
-    if (!token) return navigate('/login')
+    const loadDashboard = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
 
-    axios.get('/api/dashboard', {
-      headers: { Authorization: `Bearer ${token}` }
-    }).then(res => {
-      setData(res.data)
-      setLoading(false)
-    }).catch(() => {
-      localStorage.clear()
-      navigate('/login')
-    })
+      if (!session) {
+        navigate('/login')
+        return
+      }
+
+      const token = session.access_token
+      localStorage.setItem('remotestreak_token', token)
+
+      try {
+        const res = await axios.get('/api/dashboard', {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        setData(res.data)
+        setLoading(false)
+      } catch {
+        navigate('/login')
+      }
+    }
+    loadDashboard()
   }, [])
 
   if (loading) return (

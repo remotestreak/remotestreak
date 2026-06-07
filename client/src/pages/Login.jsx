@@ -8,13 +8,24 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    supabase.auth.onAuthStateChange((event, session) => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        localStorage.setItem('remotestreak_token', session.access_token)
+        navigate('/dashboard')
+      }
+    }
+    checkSession()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
         localStorage.setItem('remotestreak_token', session.access_token)
         localStorage.setItem('remotestreak_user', JSON.stringify(session.user))
         navigate('/dashboard')
       }
     })
+
+    return () => subscription.unsubscribe()
   }, [])
 
   const handleGoogleLogin = async () => {
