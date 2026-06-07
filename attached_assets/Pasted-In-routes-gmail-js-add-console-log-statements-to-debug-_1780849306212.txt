@@ -1,0 +1,54 @@
+In routes/gmail.js add console.log statements to debug the callback:
+
+router.get('/callback', async (req, res) => {
+  console.log('Gmail callback received')
+  console.log('Query params:', req.query)
+  console.log('Code:', req.query.code ? 'present' : 'missing')
+  console.log('State (userId):', req.query.state)
+  
+  const callbackUrl = 'https://7b1fb97b-a071-4e3a-bf8e-54e97d032703-00-1p2nrmvk9uxhl.riker.replit.dev:3000/api/gmail/callback'
+  const { code, state: userId } = req.query;
+  
+  if (!code || !userId) {
+    console.log('Missing code or userId - redirecting to error')
+    return res.redirect('https://7b1fb97b-a071-4e3a-bf8e-54e97d032703-00-1p2nrmvk9uxhl.riker.replit.dev:3000/dashboard?gmail=error');
+  }
+  
+  try {
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      callbackUrl
+    );
+    const { tokens } = await oauth2Client.getToken(code);
+    console.log('Tokens received:', tokens ? 'yes' : 'no')
+    oauth2Client.setCredentials(tokens);
+    const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
+    const { data: userInfo } = await oauth2.userinfo.get();
+    console.log('User email:', userInfo.email)
+    
+    const { error: upsertError } = await supabase
+      .from('gmail_tokens')
+      .upsert({
+        user_id: userId,
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        expiry_date: tokens.expiry_date,
+        gmail_email: userInfo.email,
+        connected_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+    
+    if (upsertError) {
+      console.log('Upsert error:', upsertError)
+    } else {
+      console.log('Gmail token saved successfully')
+    }
+      
+    res.redirect('https://7b1fb97b-a071-4e3a-bf8e-54e97d032703-00-1p2nrmvk9uxhl.riker.replit.dev:3000/dashboard?gmail=connected');
+  } catch (error) {
+    console.error('Gmail callback error:', error.message);
+    res.redirect('https://7b1fb97b-a071-4e3a-bf8e-54e97d032703-00-1p2nrmvk9uxhl.riker.replit.dev:3000/dashboard?gmail=error');
+  }
+});
+
+Then restart the server.

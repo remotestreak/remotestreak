@@ -53,10 +53,16 @@ router.get('/connect', verifyToken, async (req, res) => {
 });
 
 router.get('/callback', async (req, res) => {
+  console.log('Gmail callback received')
+  console.log('Query params:', req.query)
+  console.log('Code:', req.query.code ? 'present' : 'missing')
+  console.log('State (userId):', req.query.state)
+
   const callbackUrl = 'https://7b1fb97b-a071-4e3a-bf8e-54e97d032703-00-1p2nrmvk9uxhl.riker.replit.dev:3000/api/gmail/callback'
   const { code, state: userId } = req.query;
 
   if (!code || !userId) {
+    console.log('Missing code or userId - redirecting to error')
     return res.redirect('https://7b1fb97b-a071-4e3a-bf8e-54e97d032703-00-1p2nrmvk9uxhl.riker.replit.dev:3000/dashboard?gmail=error');
   }
 
@@ -67,11 +73,13 @@ router.get('/callback', async (req, res) => {
       callbackUrl
     );
     const { tokens } = await oauth2Client.getToken(code);
+    console.log('Tokens received:', tokens ? 'yes' : 'no')
     oauth2Client.setCredentials(tokens);
     const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
     const { data: userInfo } = await oauth2.userinfo.get();
+    console.log('User email:', userInfo.email)
 
-    await supabase
+    const { error: upsertError } = await supabase
       .from('gmail_tokens')
       .upsert({
         user_id: userId,
@@ -82,9 +90,15 @@ router.get('/callback', async (req, res) => {
         connected_at: new Date().toISOString()
       }, { onConflict: 'user_id' });
 
+    if (upsertError) {
+      console.log('Upsert error:', upsertError)
+    } else {
+      console.log('Gmail token saved successfully')
+    }
+
     res.redirect('https://7b1fb97b-a071-4e3a-bf8e-54e97d032703-00-1p2nrmvk9uxhl.riker.replit.dev:3000/dashboard?gmail=connected');
   } catch (error) {
-    console.error('Gmail callback error:', error);
+    console.error('Gmail callback error:', error.message);
     res.redirect('https://7b1fb97b-a071-4e3a-bf8e-54e97d032703-00-1p2nrmvk9uxhl.riker.replit.dev:3000/dashboard?gmail=error');
   }
 });
