@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 import { supabase } from "../supabaseClient";
 
 export default function Signup() {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
   const [selectedPlan, setSelectedPlan] = useState("");
-  const [form, setForm] = useState({ full_name: "", email: "", password: "" });
+  const [step, setStep] = useState(1);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -36,77 +34,73 @@ export default function Signup() {
     },
   ];
 
-  const handleSignup = async () => {
-    if (!form.full_name || !form.email || !form.password) {
-      return setError("Please fill in all fields");
-    }
-    if (form.password.length < 6) {
-      return setError("Password must be at least 6 characters");
-    }
+  useEffect(() => {
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        localStorage.setItem("remotestreak_token", session.access_token);
+        localStorage.setItem("remotestreak_user", JSON.stringify(session.user));
+
+        await fetch("/api/auth/google-user", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+
+        const savedPlan = localStorage.getItem("remotestreak_selected_plan");
+        if (savedPlan) {
+          setSelectedPlan(savedPlan);
+          setStep(3);
+        } else {
+          setStep(2);
+        }
+      }
+    });
+  }, []);
+
+  const handleGoogleSignIn = async () => {
+    if (!selectedPlan) return setError("Please select a plan first");
+    localStorage.setItem("remotestreak_selected_plan", selectedPlan);
     setLoading(true);
-    setError("");
-    try {
-      await axios.post("/api/auth/signup", form);
-      const loginRes = await axios.post("/api/auth/login", {
-        email: form.email,
-        password: form.password,
-      });
-      localStorage.setItem(
-        "remotestreak_token",
-        loginRes.data.session.access_token,
-      );
-      localStorage.setItem(
-        "remotestreak_user",
-        JSON.stringify(loginRes.data.user),
-      );
-      setStep(3);
-    } catch (err) {
-      setError(err.response?.data?.error || "Signup failed");
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.href,
+      },
+    });
+    if (error) {
+      setError(error.message);
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handlePayment = async () => {
-    if (!selectedPlan) return setError("Please select a plan");
+    const plan =
+      selectedPlan || localStorage.getItem("remotestreak_selected_plan");
+    if (!plan) return setError("No plan selected");
     setLoading(true);
     setError("");
     try {
       const token = localStorage.getItem("remotestreak_token");
-      const res = await axios.post(
-        "/api/paystack/initialize",
-        { plan: selectedPlan },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      window.location.href = res.data.authorization_url;
+      const response = await fetch("/api/paystack/initialize", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ plan }),
+      });
+      const data = await response.json();
+      if (data.authorization_url) {
+        window.location.href = data.authorization_url;
+      } else {
+        setError(data.error || "Payment failed");
+      }
     } catch (err) {
-      setError(err.response?.data?.error || "Payment initialization failed");
+      setError("Payment initialization failed");
     }
     setLoading(false);
   };
-
-  useEffect(() => {
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        localStorage.setItem('remotestreak_token', session.access_token)
-        localStorage.setItem('remotestreak_user', JSON.stringify(session.user))
-
-        await fetch('/api/auth/google-user', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${session.access_token}`
-          }
-        })
-
-        const savedPlan = localStorage.getItem('remotestreak_selected_plan')
-        if (savedPlan) {
-          setSelectedPlan(savedPlan)
-          setStep(3)
-        } else {
-          setStep(2)
-        }
-      }
-    })
-  }, [])
 
   return (
     <div className="min-h-screen bg-[#0A0F1E] flex items-center justify-center px-4 py-12">
@@ -123,6 +117,7 @@ export default function Signup() {
             </div>
             <span className="font-syne font-bold text-xl">RemoteStreak</span>
           </div>
+
           <div className="flex items-center justify-center gap-2 mb-6">
             {[1, 2, 3].map((i) => (
               <div key={i} className="flex items-center gap-2">
@@ -143,19 +138,20 @@ export default function Signup() {
               </div>
             ))}
           </div>
+
           <h1 className="font-syne font-bold text-3xl mb-2">
             {step === 1
               ? "Choose your plan"
               : step === 2
                 ? "Create your account"
-                : "Complete payment"}
+                : "Activate your agent"}
           </h1>
           <p className="text-[#8A9BB0]">
             {step === 1
               ? "Start your remote job streak today"
               : step === 2
-                ? "Your agent is almost ready"
-                : "Activate your agent"}
+                ? "One click with Google"
+                : "Complete payment to launch"}
           </p>
         </div>
 
@@ -217,6 +213,7 @@ export default function Signup() {
                 </div>
               </div>
             ))}
+
             <button
               onClick={() => {
                 if (!selectedPlan) return setError("Please select a plan");
@@ -227,6 +224,7 @@ export default function Signup() {
             >
               Continue →
             </button>
+
             <p className="text-center text-[#8A9BB0] text-xs">
               Already have an account?{" "}
               <span
@@ -241,63 +239,48 @@ export default function Signup() {
 
         {step === 2 && (
           <div className="bg-[#111827] border border-[#1E293B] rounded-2xl p-8">
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm text-[#8A9BB0] mb-2 block">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  value={form.full_name}
-                  onChange={(e) =>
-                    setForm({ ...form, full_name: e.target.value })
-                  }
-                  className="w-full bg-[#0A0F1E] border border-[#1E293B] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#00E5A0] transition-colors"
-                  placeholder="Your full name"
-                />
-              </div>
-              <div>
-                <label className="text-sm text-[#8A9BB0] mb-2 block">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="w-full bg-[#0A0F1E] border border-[#1E293B] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#00E5A0] transition-colors"
-                  placeholder="you@example.com"
-                />
-              </div>
-              <div>
-                <label className="text-sm text-[#8A9BB0] mb-2 block">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  value={form.password}
-                  onChange={(e) =>
-                    setForm({ ...form, password: e.target.value })
-                  }
-                  className="w-full bg-[#0A0F1E] border border-[#1E293B] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#00E5A0] transition-colors"
-                  placeholder="Min 6 characters"
-                />
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={() => setStep(1)}
-                  className="flex-1 border border-[#1E293B] text-[#8A9BB0] py-3 rounded-xl font-semibold hover:border-[#00E5A0] transition-all"
-                >
-                  ← Back
-                </button>
-                <button
-                  onClick={handleSignup}
-                  disabled={loading}
-                  className="flex-grow bg-[#00E5A0] text-[#0A0F1E] py-3 rounded-xl font-semibold hover:bg-opacity-90 transition-all disabled:opacity-50"
-                >
-                  {loading ? "Creating..." : "Create Account →"}
-                </button>
-              </div>
+            <div className="text-center mb-6">
+              <p className="text-[#8A9BB0] text-sm">
+                Sign in with Google to create your RemoteStreak account
+              </p>
             </div>
+
+            <button
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-3 bg-white text-gray-800 py-4 rounded-xl font-semibold text-lg hover:bg-gray-100 transition-all disabled:opacity-50"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                />
+              </svg>
+              {loading ? "Redirecting..." : "Continue with Google"}
+            </button>
+
+            <button
+              onClick={() => setStep(1)}
+              className="w-full border border-[#1E293B] text-[#8A9BB0] py-3 rounded-xl font-semibold hover:border-[#00E5A0] transition-all mt-3"
+            >
+              ← Back
+            </button>
+
+            <p className="text-center text-[#8A9BB0] text-xs mt-4">
+              No password needed · Secured by Google
+            </p>
           </div>
         )}
 
@@ -306,9 +289,7 @@ export default function Signup() {
             <div className="w-16 h-16 bg-[#1E293B] rounded-full flex items-center justify-center mx-auto mb-6">
               <span className="text-3xl">🚀</span>
             </div>
-            <h2 className="font-syne font-bold text-2xl mb-2">
-              Account created
-            </h2>
+            <h2 className="font-syne font-bold text-2xl mb-2">Account ready</h2>
             <p className="text-[#8A9BB0] mb-6">
               One last step — activate your agent with payment
             </p>
@@ -316,7 +297,9 @@ export default function Signup() {
               <div className="flex justify-between items-center">
                 <span className="text-[#8A9BB0] text-sm">Selected plan</span>
                 <span className="text-[#00E5A0] font-mono text-sm">
-                  {selectedPlan === "streak_starter"
+                  {(selectedPlan ||
+                    localStorage.getItem("remotestreak_selected_plan")) ===
+                  "streak_starter"
                     ? "Streak Starter — $12/mo"
                     : "Streak Core — $25/mo"}
                 </span>
