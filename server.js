@@ -67,6 +67,8 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "client/dist/index.html"));
 });
 
+require('./jobs/scheduler');
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`RemoteStreak server running on port ${PORT}`);
