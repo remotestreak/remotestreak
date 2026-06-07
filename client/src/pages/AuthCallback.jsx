@@ -7,25 +7,19 @@ export default function AuthCallback() {
   const [status, setStatus] = useState('Completing sign in...')
 
   useEffect(() => {
-    const handleCallback = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession()
-
-        if (error || !session) {
-          setStatus('Sign in failed. Redirecting...')
-          setTimeout(() => navigate('/signup'), 2000)
-          return
-        }
-
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
         localStorage.setItem('remotestreak_token', session.access_token)
         localStorage.setItem('remotestreak_user', JSON.stringify(session.user))
 
-        await fetch('/api/auth/google-user', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${session.access_token}`
-          }
-        })
+        try {
+          await fetch('/api/auth/google-user', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${session.access_token}`
+            }
+          })
+        } catch (e) {}
 
         const cookies = document.cookie.split(';').reduce((acc, c) => {
           const [k, v] = c.trim().split('=')
@@ -33,21 +27,20 @@ export default function AuthCallback() {
           return acc
         }, {})
 
-        const plan = cookies['rs_plan']
+        const plan = cookies['rs_plan'] || localStorage.getItem('remotestreak_selected_plan')
 
         if (plan) {
-          localStorage.setItem('remotestreak_selected_plan', plan)
           document.cookie = 'rs_plan=;path=/;max-age=0'
           navigate(`/signup?plan=${plan}&authenticated=true`)
         } else {
           navigate('/dashboard')
         }
-      } catch (err) {
+      }
+
+      if (event === 'SIGNED_OUT') {
         navigate('/signup')
       }
-    }
-
-    handleCallback()
+    })
   }, [])
 
   return (
