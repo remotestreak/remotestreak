@@ -30,6 +30,23 @@ export default function Onboarding() {
     culture_fit: ''
   })
 
+  const [step3, setStep3] = useState({
+    cv_drive_link: '',
+    video_link: '',
+    audio_link: '',
+    portfolio_url: '',
+    writing_sample_url: ''
+  })
+
+  const [step4, setStep4] = useState({
+    target_keywords: [],
+    excluded_keywords: [],
+    min_company_size: 'Any',
+    preferred_industries: [],
+    new_target_keyword: '',
+    new_excluded_keyword: ''
+  })
+
   const token = localStorage.getItem('remotestreak_token')
 
   const roleTypes = [
@@ -44,8 +61,16 @@ export default function Onboarding() {
     'Google Workspace', 'Canva', 'Monday.com', 'ClickUp'
   ]
 
+  const industries = [
+    'SaaS', 'E-commerce', 'Marketing Agency', 'Real Estate',
+    'Finance', 'Healthcare', 'Education', 'Consulting',
+    'Media', 'Recruiting', 'Legal', 'Non-profit'
+  ]
+
   const toggleItem = (arr, item) =>
     arr.includes(item) ? arr.filter(i => i !== item) : [...arr, item]
+
+  const strengthScore = step === 1 ? 20 : step === 2 ? 50 : step === 3 ? 80 : 100
 
   const submitStep1 = async () => {
     if (!step1.linkedin_url.includes('linkedin.com/in/')) {
@@ -74,14 +99,62 @@ export default function Onboarding() {
       await axios.post('/api/onboarding/step2', step2, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      navigate('/dashboard')
+      setStep(3)
     } catch (err) {
       setError(err.response?.data?.error || 'Error saving step 2')
     }
     setLoading(false)
   }
 
-  const strengthScore = step === 1 ? 20 : 50
+  const submitStep3 = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      await axios.post('/api/onboarding/step3', step3, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setStep(4)
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error saving step 3')
+    }
+    setLoading(false)
+  }
+
+  const submitStep4 = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      await axios.post('/api/onboarding/step4', {
+        target_keywords: step4.target_keywords,
+        excluded_keywords: step4.excluded_keywords,
+        min_company_size: step4.min_company_size,
+        preferred_industries: step4.preferred_industries
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      navigate('/dashboard')
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error saving step 4')
+    }
+    setLoading(false)
+  }
+
+  const addKeyword = (type) => {
+    if (type === 'target' && step4.new_target_keyword.trim()) {
+      setStep4({
+        ...step4,
+        target_keywords: [...step4.target_keywords, step4.new_target_keyword.trim()],
+        new_target_keyword: ''
+      })
+    }
+    if (type === 'excluded' && step4.new_excluded_keyword.trim()) {
+      setStep4({
+        ...step4,
+        excluded_keywords: [...step4.excluded_keywords, step4.new_excluded_keyword.trim()],
+        new_excluded_keyword: ''
+      })
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#0A0F1E] text-white">
@@ -96,7 +169,6 @@ export default function Onboarding() {
       </nav>
 
       <div className="max-w-2xl mx-auto px-8 py-12">
-        {/* Agent Strength Meter */}
         <div className="bg-[#111827] border border-[#1E293B] rounded-2xl p-6 mb-8">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm text-[#8A9BB0]">Agent Strength</p>
@@ -119,7 +191,6 @@ export default function Onboarding() {
           </div>
         )}
 
-        {/* Step 1 */}
         {step === 1 && (
           <div className="fade-in">
             <h1 className="font-syne font-bold text-3xl mb-2">The Basics</h1>
@@ -179,7 +250,7 @@ export default function Onboarding() {
                       className={`px-3 py-2 rounded-lg text-sm transition-all ${
                         step1.target_role_types.includes(role)
                           ? 'bg-[#00E5A0] text-[#0A0F1E] font-semibold'
-                          : 'bg-[#1E293B] text-[#8A9BB0] hover:border-[#00E5A0] border border-transparent'
+                          : 'bg-[#1E293B] text-[#8A9BB0]'
                       }`}
                     >
                       {role}
@@ -233,7 +304,6 @@ export default function Onboarding() {
           </div>
         )}
 
-        {/* Step 2 */}
         {step === 2 && (
           <div className="fade-in">
             <h1 className="font-syne font-bold text-3xl mb-2">Your Career Story</h1>
@@ -293,7 +363,7 @@ export default function Onboarding() {
                   onChange={e => setStep2({...step2, proudest_result: e.target.value})}
                   rows={4}
                   className="w-full bg-[#0A0F1E] border border-[#1E293B] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#00E5A0] transition-colors resize-none"
-                  placeholder="Be specific — numbers, outcomes, and timeframes make your agent's pitch far stronger. e.g. Booked 45 qualified sales calls in one month for a B2B SaaS client using Apollo..."
+                  placeholder="Be specific — numbers, outcomes, and timeframes make your agent's pitch far stronger..."
                 />
               </div>
 
@@ -306,7 +376,7 @@ export default function Onboarding() {
                   onChange={e => setStep2({...step2, superpower: e.target.value})}
                   rows={3}
                   className="w-full bg-[#0A0F1E] border border-[#1E293B] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#00E5A0] transition-colors resize-none"
-                  placeholder="e.g. I anticipate needs before they are asked, communicate clearly across time zones..."
+                  placeholder="e.g. I anticipate needs before they are asked..."
                 />
               </div>
 
@@ -358,9 +428,233 @@ export default function Onboarding() {
                 <button
                   onClick={submitStep2}
                   disabled={loading}
-                  className="flex-2 flex-grow bg-[#00E5A0] text-[#0A0F1E] py-4 rounded-xl font-semibold text-lg hover:bg-opacity-90 transition-all disabled:opacity-50"
+                  className="flex-grow bg-[#00E5A0] text-[#0A0F1E] py-4 rounded-xl font-semibold text-lg hover:bg-opacity-90 transition-all disabled:opacity-50"
                 >
                   {loading ? 'Analysing your profile...' : 'Build My Agent →'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="fade-in">
+            <h1 className="font-syne font-bold text-3xl mb-2">Agent Vault</h1>
+            <p className="text-[#8A9BB0] mb-8">Give your agent the assets it needs to represent you fully</p>
+
+            <div className="space-y-6">
+              <div>
+                <label className="text-sm text-[#8A9BB0] mb-2 block">CV — Google Drive Link</label>
+                <input
+                  type="url"
+                  value={step3.cv_drive_link}
+                  onChange={e => setStep3({...step3, cv_drive_link: e.target.value})}
+                  className="w-full bg-[#0A0F1E] border border-[#1E293B] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#00E5A0] transition-colors"
+                  placeholder="https://drive.google.com/file/d/..."
+                />
+                <p className="text-[#8A9BB0] text-xs mt-1">Your agent attaches this to every active job application automatically</p>
+              </div>
+
+              <div>
+                <label className="text-sm text-[#8A9BB0] mb-2 block">Career Intro Video Link</label>
+                <input
+                  type="url"
+                  value={step3.video_link}
+                  onChange={e => setStep3({...step3, video_link: e.target.value})}
+                  className="w-full bg-[#0A0F1E] border border-[#1E293B] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#00E5A0] transition-colors"
+                  placeholder="Loom, Vimeo, Google Drive or YouTube link"
+                />
+                <p className="text-[#8A9BB0] text-xs mt-1">Record 1–2 minutes — your background, proudest result, and why you are excellent at what you do</p>
+              </div>
+
+              <div>
+                <label className="text-sm text-[#8A9BB0] mb-2 block">Audio Intro Link</label>
+                <input
+                  type="url"
+                  value={step3.audio_link}
+                  onChange={e => setStep3({...step3, audio_link: e.target.value})}
+                  className="w-full bg-[#0A0F1E] border border-[#1E293B] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#00E5A0] transition-colors"
+                  placeholder="60–90 second voice intro link"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm text-[#8A9BB0] mb-2 block">Portfolio URL</label>
+                <input
+                  type="url"
+                  value={step3.portfolio_url}
+                  onChange={e => setStep3({...step3, portfolio_url: e.target.value})}
+                  className="w-full bg-[#0A0F1E] border border-[#1E293B] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#00E5A0] transition-colors"
+                  placeholder="https://yourportfolio.com"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm text-[#8A9BB0] mb-2 block">Writing Sample Link</label>
+                <input
+                  type="url"
+                  value={step3.writing_sample_url}
+                  onChange={e => setStep3({...step3, writing_sample_url: e.target.value})}
+                  className="w-full bg-[#0A0F1E] border border-[#1E293B] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#00E5A0] transition-colors"
+                  placeholder="Google Drive, Notion or any URL"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setStep(2)}
+                  className="flex-1 border border-[#1E293B] text-[#8A9BB0] py-4 rounded-xl font-semibold hover:border-[#00E5A0] transition-all"
+                >
+                  ← Back
+                </button>
+                <button
+                  onClick={submitStep3}
+                  disabled={loading}
+                  className="flex-grow bg-[#00E5A0] text-[#0A0F1E] py-4 rounded-xl font-semibold text-lg hover:bg-opacity-90 transition-all disabled:opacity-50"
+                >
+                  {loading ? 'Saving...' : 'Continue to Targeting →'}
+                </button>
+              </div>
+
+              <button
+                onClick={submitStep3}
+                className="w-full text-[#8A9BB0] text-sm hover:text-white transition-colors"
+              >
+                Skip for now — I will add these later
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="fade-in">
+            <h1 className="font-syne font-bold text-3xl mb-2">Targeting Preferences</h1>
+            <p className="text-[#8A9BB0] mb-8">Tell your agent exactly what to look for</p>
+
+            <div className="space-y-6">
+              <div>
+                <label className="text-sm text-[#8A9BB0] mb-2 block">Job Title Keywords to Target</label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={step4.new_target_keyword}
+                    onChange={e => setStep4({...step4, new_target_keyword: e.target.value})}
+                    onKeyPress={e => e.key === 'Enter' && addKeyword('target')}
+                    className="flex-1 bg-[#0A0F1E] border border-[#1E293B] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#00E5A0] transition-colors"
+                    placeholder="e.g. Virtual Assistant, Executive Assistant"
+                  />
+                  <button
+                    onClick={() => addKeyword('target')}
+                    className="bg-[#00E5A0] text-[#0A0F1E] px-4 rounded-xl font-semibold"
+                  >
+                    Add
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {step4.target_keywords.map((kw, i) => (
+                    <span
+                      key={i}
+                      onClick={() => setStep4({...step4, target_keywords: step4.target_keywords.filter((_, j) => j !== i)})}
+                      className="bg-[#00E5A0] text-[#0A0F1E] text-xs px-3 py-1 rounded-full cursor-pointer font-semibold"
+                    >
+                      {kw} ✕
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm text-[#8A9BB0] mb-2 block">Keywords to Exclude</label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={step4.new_excluded_keyword}
+                    onChange={e => setStep4({...step4, new_excluded_keyword: e.target.value})}
+                    onKeyPress={e => e.key === 'Enter' && addKeyword('excluded')}
+                    className="flex-1 bg-[#0A0F1E] border border-[#1E293B] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#00E5A0] transition-colors"
+                    placeholder="e.g. Intern, Junior, Unpaid"
+                  />
+                  <button
+                    onClick={() => addKeyword('excluded')}
+                    className="bg-red-500 text-white px-4 rounded-xl font-semibold"
+                  >
+                    Add
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {step4.excluded_keywords.map((kw, i) => (
+                    <span
+                      key={i}
+                      onClick={() => setStep4({...step4, excluded_keywords: step4.excluded_keywords.filter((_, j) => j !== i)})}
+                      className="bg-red-900 bg-opacity-50 text-red-400 text-xs px-3 py-1 rounded-full cursor-pointer"
+                    >
+                      {kw} ✕
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm text-[#8A9BB0] mb-3 block">Minimum Company Size</label>
+                <div className="flex flex-wrap gap-3">
+                  {['Any', '1–10', '10–50', '50–200', '200+'].map(size => (
+                    <button
+                      key={size}
+                      onClick={() => setStep4({...step4, min_company_size: size})}
+                      className={`px-4 py-2 rounded-xl text-sm transition-all ${
+                        step4.min_company_size === size
+                          ? 'bg-[#00E5A0] text-[#0A0F1E] font-semibold'
+                          : 'bg-[#1E293B] text-[#8A9BB0]'
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm text-[#8A9BB0] mb-3 block">Preferred Industries</label>
+                <div className="flex flex-wrap gap-2">
+                  {industries.map(ind => (
+                    <button
+                      key={ind}
+                      onClick={() => setStep4({
+                        ...step4,
+                        preferred_industries: toggleItem(step4.preferred_industries, ind)
+                      })}
+                      className={`px-3 py-2 rounded-lg text-sm transition-all ${
+                        step4.preferred_industries.includes(ind)
+                          ? 'bg-[#00E5A0] text-[#0A0F1E] font-semibold'
+                          : 'bg-[#1E293B] text-[#8A9BB0]'
+                      }`}
+                    >
+                      {ind}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-[#111827] border border-[#1E293B] rounded-xl p-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-[#00E5A0] rounded-full"></div>
+                  <p className="text-sm text-[#8A9BB0]">RemoteStreak only applies to 100% remote roles — always</p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setStep(3)}
+                  className="flex-1 border border-[#1E293B] text-[#8A9BB0] py-4 rounded-xl font-semibold hover:border-[#00E5A0] transition-all"
+                >
+                  ← Back
+                </button>
+                <button
+                  onClick={submitStep4}
+                  disabled={loading}
+                  className="flex-grow bg-[#00E5A0] text-[#0A0F1E] py-4 rounded-xl font-semibold text-lg hover:bg-opacity-90 transition-all disabled:opacity-50"
+                >
+                  {loading ? 'Launching agent...' : 'Launch My Agent 🚀'}
                 </button>
               </div>
             </div>
