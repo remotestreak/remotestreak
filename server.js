@@ -66,6 +66,7 @@ app.listen(PORT, () => {
 
 process.on("uncaughtException", (err) => {
   console.error("Uncaught Exception:", err.message);
+  if (err.code === "EADDRINUSE") process.exit(1);
 });
 
 process.on("unhandledRejection", (reason) => {

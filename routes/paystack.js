@@ -8,19 +8,19 @@ const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 const PLANS = {
   streak_starter: {
     name: "Streak Starter",
-    amount: 12,
+    amount: 18000,
     credits: 40,
     cold_outreach_daily: 2,
   },
   streak_core: {
     name: "Streak Core",
-    amount: 25,
+    amount: 37500,
     credits: 120,
     cold_outreach_daily: 3,
   },
   streak_pro: {
     name: "Streak Pro",
-    amount: 45,
+    amount: 67500,
     credits: 400,
     cold_outreach_daily: 5,
   },
@@ -50,7 +50,7 @@ router.post("/initialize", verifyToken, async (req, res) => {
   const params = JSON.stringify({
     email: profile.email,
     amount: planConfig.amount * 100,
-    currency: "USD",
+    currency: "NGN",
     metadata: {
       user_id: req.user.id,
       plan: plan,
@@ -219,7 +219,7 @@ router.post("/topup", verifyToken, async (req, res) => {
   const params = JSON.stringify({
     email: profile.email,
     amount: amount * 100,
-    currency: "USD",
+    currency: "NGN",
     metadata: {
       user_id: req.user.id,
       type: "topup",
