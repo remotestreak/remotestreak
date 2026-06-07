@@ -19,10 +19,10 @@ const calculateScore = (job, prefs, strengthProfile) => {
   let score = 0;
 
   const targetKeywords = prefs?.target_keywords || [];
-  if (containsAny(combined, targetKeywords)) score += 40;
+  if (containsAny(combined, targetKeywords)) score += 50;
 
   const targetRoleTypes = prefs?.target_role_types || [];
-  if (containsAny(combined, targetRoleTypes)) score += 30;
+  if (containsAny(combined, targetRoleTypes)) score += 40;
 
   const strengthTags = strengthProfile?.strength_tags || [];
   if (containsAny(combined, strengthTags)) score += 30;
