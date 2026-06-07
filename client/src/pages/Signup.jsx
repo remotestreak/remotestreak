@@ -58,6 +58,30 @@ export default function Signup() {
     });
   }, []);
 
+  useEffect(() => {
+    const checkExistingSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        localStorage.setItem('remotestreak_token', session.access_token)
+        localStorage.setItem('remotestreak_user', JSON.stringify(session.user))
+
+        await fetch('/api/auth/google-user', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`
+          }
+        })
+
+        const savedPlan = localStorage.getItem('remotestreak_selected_plan')
+        if (savedPlan) {
+          setSelectedPlan(savedPlan)
+          setStep(3)
+        }
+      }
+    }
+    checkExistingSession()
+  }, [])
+
   const handleGoogleSignIn = async () => {
     if (!selectedPlan) return setError("Please select a plan first");
     localStorage.setItem("remotestreak_selected_plan", selectedPlan);
