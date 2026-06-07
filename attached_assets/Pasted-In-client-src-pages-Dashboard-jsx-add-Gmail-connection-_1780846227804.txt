@@ -1,0 +1,60 @@
+In client/src/pages/Dashboard.jsx add Gmail connection status to the dashboard.
+
+After the existing useEffect add this function:
+
+const connectGmail = async () => {
+  const token = localStorage.getItem('remotestreak_token')
+  try {
+    const res = await axios.get('/api/gmail/connect', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    window.location.href = res.data.url
+  } catch (err) {
+    console.error('Gmail connect error:', err)
+  }
+}
+
+Then in the loadDashboard useEffect also fetch Gmail status by adding this after the dashboard API call:
+
+const gmailRes = await axios.get('/api/gmail/status', {
+  headers: { Authorization: `Bearer ${token}` }
+}).catch(() => ({ data: { connected: false } }))
+
+setData(prev => ({ ...prev, gmail: gmailRes.data }))
+
+Also add useState for gmail at the top:
+const [gmailStatus, setGmailStatus] = useState(null)
+
+Then add this Gmail connection card to the dashboard JSX after the agent strength cards section and before the strength profile section:
+
+<div className={`bg-[#111827] border rounded-2xl p-6 mb-8 ${data?.gmail?.connected ? 'border-[#00E5A0]' : 'border-[#1E293B]'}`}>
+  <div className="flex items-center justify-between">
+    <div>
+      <h3 className="font-syne font-bold text-lg mb-1">
+        {data?.gmail?.connected ? '✅ Gmail Connected' : 'Connect Gmail'}
+      </h3>
+      <p className="text-[#8A9BB0] text-sm">
+        {data?.gmail?.connected 
+          ? `Sending as ${data.gmail.email}` 
+          : 'Your agent needs Gmail access to send applications on your behalf'}
+      </p>
+    </div>
+    {!data?.gmail?.connected && (
+      <button
+        onClick={connectGmail}
+        className="bg-[#00E5A0] text-[#0A0F1E] px-6 py-3 rounded-xl font-semibold text-sm hover:bg-opacity-90 transition-all whitespace-nowrap ml-4"
+      >
+        Connect Gmail →
+      </button>
+    )}
+  </div>
+</div>
+
+Also handle the gmail=connected and gmail=error URL params when user returns from Gmail OAuth. Add this to the useEffect:
+
+const urlParams = new URLSearchParams(window.location.search)
+if (urlParams.get('gmail') === 'connected') {
+  window.history.replaceState({}, '', '/dashboard')
+}
+
+Then rebuild frontend and restart server.

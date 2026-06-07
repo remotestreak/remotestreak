@@ -7,6 +7,7 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [gmailStatus, setGmailStatus] = useState(null)
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -20,11 +21,19 @@ export default function Dashboard() {
       const token = session.access_token
       localStorage.setItem('remotestreak_token', token)
 
+      const urlParams = new URLSearchParams(window.location.search)
+      if (urlParams.get('gmail') === 'connected') {
+        window.history.replaceState({}, '', '/dashboard')
+      }
+
       try {
         const res = await axios.get('/api/dashboard', {
           headers: { Authorization: `Bearer ${token}` }
         })
-        setData(res.data)
+        const gmailRes = await axios.get('/api/gmail/status', {
+          headers: { Authorization: `Bearer ${token}` }
+        }).catch(() => ({ data: { connected: false } }))
+        setData(prev => ({ ...res.data, gmail: gmailRes.data }))
         setLoading(false)
       } catch {
         navigate('/login')
@@ -32,6 +41,18 @@ export default function Dashboard() {
     }
     loadDashboard()
   }, [])
+
+  const connectGmail = async () => {
+    const token = localStorage.getItem('remotestreak_token')
+    try {
+      const res = await axios.get('/api/gmail/connect', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      window.location.href = res.data.url
+    } catch (err) {
+      console.error('Gmail connect error:', err)
+    }
+  }
 
   if (loading) return (
     <div className="min-h-screen bg-[#0A0F1E] flex items-center justify-center">
@@ -104,6 +125,30 @@ export default function Dashboard() {
               {data?.applications?.length || 0}
             </span>
             <p className="text-[#8A9BB0] text-xs mt-2">total this month</p>
+          </div>
+        </div>
+
+        {/* Gmail Connection */}
+        <div className={`bg-[#111827] border rounded-2xl p-6 mb-8 ${data?.gmail?.connected ? 'border-[#00E5A0]' : 'border-[#1E293B]'}`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-syne font-bold text-lg mb-1">
+                {data?.gmail?.connected ? '✅ Gmail Connected' : 'Connect Gmail'}
+              </h3>
+              <p className="text-[#8A9BB0] text-sm">
+                {data?.gmail?.connected
+                  ? `Sending as ${data.gmail.email}`
+                  : 'Your agent needs Gmail access to send applications on your behalf'}
+              </p>
+            </div>
+            {!data?.gmail?.connected && (
+              <button
+                onClick={connectGmail}
+                className="bg-[#00E5A0] text-[#0A0F1E] px-6 py-3 rounded-xl font-semibold text-sm hover:bg-opacity-90 transition-all whitespace-nowrap ml-4"
+              >
+                Connect Gmail →
+              </button>
+            )}
           </div>
         </div>
 
