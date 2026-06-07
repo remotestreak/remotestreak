@@ -25,32 +25,52 @@ const verifyToken = async (req, res, next) => {
 };
 
 router.get('/connect', verifyToken, async (req, res) => {
-  const oauth2Client = getOAuthClient();
+  const callbackUrl = 'https://7b1fb97b-a071-4e3a-bf8e-54e97d032703-00-1p2nrmvk9uxhl.riker.replit.dev:3000/api/gmail/callback'
+
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    callbackUrl
+  );
+
   const scopes = [
     'https://www.googleapis.com/auth/gmail.send',
     'https://www.googleapis.com/auth/gmail.readonly',
     'https://www.googleapis.com/auth/userinfo.email'
   ];
+
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: scopes,
     prompt: 'consent',
     state: req.user.id
   });
+
+  console.log('Gmail OAuth URL:', url)
+  console.log('Callback URL:', callbackUrl)
+
   res.json({ url });
 });
 
 router.get('/callback', async (req, res) => {
+  const callbackUrl = 'https://7b1fb97b-a071-4e3a-bf8e-54e97d032703-00-1p2nrmvk9uxhl.riker.replit.dev:3000/api/gmail/callback'
   const { code, state: userId } = req.query;
+
   if (!code || !userId) {
-    return res.redirect(`${process.env.APP_URL}/dashboard?gmail=error`);
+    return res.redirect('https://7b1fb97b-a071-4e3a-bf8e-54e97d032703-00-1p2nrmvk9uxhl.riker.replit.dev:3000/dashboard?gmail=error');
   }
+
   try {
-    const oauth2Client = getOAuthClient();
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      callbackUrl
+    );
     const { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
     const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
     const { data: userInfo } = await oauth2.userinfo.get();
+
     await supabase
       .from('gmail_tokens')
       .upsert({
@@ -61,10 +81,11 @@ router.get('/callback', async (req, res) => {
         gmail_email: userInfo.email,
         connected_at: new Date().toISOString()
       }, { onConflict: 'user_id' });
-    res.redirect(`${process.env.APP_URL}/dashboard?gmail=connected`);
+
+    res.redirect('https://7b1fb97b-a071-4e3a-bf8e-54e97d032703-00-1p2nrmvk9uxhl.riker.replit.dev:3000/dashboard?gmail=connected');
   } catch (error) {
     console.error('Gmail callback error:', error);
-    res.redirect(`${process.env.APP_URL}/dashboard?gmail=error`);
+    res.redirect('https://7b1fb97b-a071-4e3a-bf8e-54e97d032703-00-1p2nrmvk9uxhl.riker.replit.dev:3000/dashboard?gmail=error');
   }
 });
 
