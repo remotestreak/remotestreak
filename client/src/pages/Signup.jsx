@@ -26,6 +26,18 @@ export default function Signup() {
   ]
 
   useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const plan = urlParams.get('plan')
+    const authenticated = urlParams.get('authenticated')
+
+    if (plan && authenticated) {
+      setSelectedPlan(plan)
+      setStep(3)
+      window.history.replaceState({}, '', '/signup')
+    }
+  }, [])
+
+  useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       
@@ -84,13 +96,14 @@ export default function Signup() {
 
   const handleGoogleSignIn = async () => {
     if (!selectedPlan) return setError('Please select a plan first')
-    sessionStorage.setItem('rs_plan', selectedPlan)
-    localStorage.setItem('remotestreak_selected_plan', selectedPlan)
+
+    document.cookie = `rs_plan=${selectedPlan};path=/;max-age=600;SameSite=Lax`
+
     setLoading(true)
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/signup`
+        redirectTo: `${window.location.origin}/auth/callback`
       }
     })
     if (error) {
