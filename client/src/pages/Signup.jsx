@@ -60,7 +60,11 @@ export default function Signup() {
 
   useEffect(() => {
     const checkExistingSession = async () => {
+      const urlParams = new URLSearchParams(window.location.search)
+      const hashParams = new URLSearchParams(window.location.hash.replace('#', ''))
+
       const { data: { session } } = await supabase.auth.getSession()
+
       if (session) {
         localStorage.setItem('remotestreak_token', session.access_token)
         localStorage.setItem('remotestreak_user', JSON.stringify(session.user))
@@ -72,10 +76,16 @@ export default function Signup() {
           }
         })
 
-        const savedPlan = localStorage.getItem('remotestreak_selected_plan')
+        const savedPlan = urlParams.get('plan') ||
+                          hashParams.get('plan') ||
+                          localStorage.getItem('remotestreak_selected_plan')
+
         if (savedPlan) {
+          localStorage.setItem('remotestreak_selected_plan', savedPlan)
           setSelectedPlan(savedPlan)
           setStep(3)
+        } else {
+          setStep(2)
         }
       }
     }
@@ -83,20 +93,22 @@ export default function Signup() {
   }, [])
 
   const handleGoogleSignIn = async () => {
-    if (!selectedPlan) return setError("Please select a plan first");
-    localStorage.setItem("remotestreak_selected_plan", selectedPlan);
-    setLoading(true);
+    if (!selectedPlan) return setError('Please select a plan first')
+    setLoading(true)
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
+      provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/signup`,
-      },
-    });
+        queryParams: {
+          plan: selectedPlan
+        }
+      }
+    })
     if (error) {
-      setError(error.message);
-      setLoading(false);
+      setError(error.message)
+      setLoading(false)
     }
-  };
+  }
 
   const handlePayment = async () => {
     const plan =
