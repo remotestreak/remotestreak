@@ -4,10 +4,14 @@ const supabase = require('../supabaseClient');
 const { google } = require('googleapis');
 
 const getOAuthClient = () => {
+  const callbackUrl = process.env.APP_URL
+    ? `${process.env.APP_URL.trim()}/api/gmail/callback`
+    : 'https://7b1fb97b-a071-4e3a-bf8e-54e97d032703-00-1p2nrmvk9uxhl.riker.replit.dev:3000/api/gmail/callback'
+
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    `${process.env.APP_URL}/api/gmail/callback`
+    callbackUrl
   );
 };
 
