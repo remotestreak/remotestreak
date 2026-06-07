@@ -167,4 +167,56 @@ No preamble. No explanation. Only JSON.`;
   }
 });
 
+router.post('/step3', verifyToken, async (req, res) => {
+  const { cv_drive_link, video_link, audio_link, portfolio_url, writing_sample_url } = req.body;
+
+  try {
+    const { error } = await supabase
+      .from('agent_vault')
+      .upsert({
+        user_id: req.user.id,
+        cv_drive_link: cv_drive_link || null,
+        video_link: video_link || null,
+        audio_link: audio_link || null,
+        portfolio_url: portfolio_url || null,
+        writing_sample_url: writing_sample_url || null,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+
+    if (error) throw error;
+
+    res.json({
+      message: 'Agent Vault saved successfully',
+      agent_strength: 80
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.post('/step4', verifyToken, async (req, res) => {
+  const { target_keywords, excluded_keywords, min_company_size, preferred_industries } = req.body;
+
+  try {
+    const { error } = await supabase
+      .from('user_preferences')
+      .upsert({
+        user_id: req.user.id,
+        target_keywords: target_keywords || [],
+        excluded_keywords: excluded_keywords || [],
+        min_company_size: min_company_size || 'Any',
+        preferred_industries: preferred_industries || []
+      }, { onConflict: 'user_id' });
+
+    if (error) throw error;
+
+    res.json({
+      message: 'Targeting preferences saved',
+      agent_strength: 100
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
 module.exports = router;
