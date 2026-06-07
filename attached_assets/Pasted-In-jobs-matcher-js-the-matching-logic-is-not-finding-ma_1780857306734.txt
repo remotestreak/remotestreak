@@ -1,0 +1,107 @@
+In jobs/matcher.js the matching logic is not finding matches even though jobs and user preferences exist in the database.
+
+Debug and fix the findMatchesForUser function. The issue is likely that the string comparison is case-sensitive or the arrays aren't being read correctly.
+
+Replace the entire matcher.js with this fixed version:
+
+const supabase = require('../supabaseClient');
+
+async function findMatchesForUser(userId) {
+  try {
+    const { data: prefs } = await supabase
+      .from('user_preferences')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    const { data: strengthProfile } = await supabase
+      .from('strength_profiles')
+      .select('strength_tags')
+      .eq('user_id', userId)
+      .single();
+
+    const { data: jobs } = await supabase
+      .from('job_opportunities')
+      .select('*')
+      .eq('screening_passed', true)
+      .eq('status', 'active')
+      .limit(100);
+
+    if (!jobs || jobs.length === 0) return [];
+    if (!prefs) return [];
+
+    const targetKeywords = (prefs.target_keywords || []).map(k => k.toLowerCase());
+    const targetRoleTypes = (prefs.target_role_types || []).map(r => r.toLowerCase());
+    const excludedKeywords = (prefs.excluded_keywords || []).map(e => e.toLowerCase());
+    const strengthTags = (strengthProfile?.strength_tags || []).map(t => t.toLowerCase());
+
+    const existingApps = await supabase
+      .from('applications')
+      .select('opportunity_id')
+      .eq('user_id', userId);
+
+    const appliedIds = new Set((existingApps.data || []).map(a => a.opportunity_id));
+
+    const matches = [];
+
+    for (const job of jobs) {
+      if (appliedIds.has(job.id)) continue;
+
+      const titleLower = (job.title || '').toLowerCase();
+      const descLower = (job.description || '').toLowerCase();
+      const combined = titleLower + ' ' + descLower;
+
+      let score = 0;
+
+      const hasExcluded = excludedKeywords.some(kw => combined.includes(kw));
+      if (hasExcluded) continue;
+
+      const hasKeyword = targetKeywords.some(kw => combined.includes(kw));
+      if (hasKeyword) score += 50;
+
+      const hasRoleType = targetRoleTypes.some(rt => combined.includes(rt));
+      if (hasRoleType) score += 40;
+
+      const hasStrengthTag = strengthTags.some(tag => combined.includes(tag));
+      if (hasStrengthTag) score += 30;
+
+      if (score >= 65) {
+        matches.push({
+          user_id: userId,
+          opportunity_id: job.id,
+          match_score: Math.min(score, 100),
+          opportunity: {
+            title: job.title,
+            company_name: job.company_name,
+            source_url: job.source_url,
+            source_tag: job.source_tag
+          }
+        });
+      }
+    }
+
+    return matches;
+
+  } catch (err) {
+    console.error('Matcher error:', err.message);
+    return [];
+  }
+}
+
+async function findMatchesForAllUsers() {
+  const { data: users } = await supabase
+    .from('users')
+    .select('id')
+    .eq('subscription_status', 'active');
+
+  const allMatches = [];
+  for (const user of (users || [])) {
+    const matches = await findMatchesForUser(user.id);
+    allMatches.push(...matches);
+  }
+  return allMatches;
+}
+
+module.exports = { findMatchesForUser, findMatchesForAllUsers };
+
+Restart the server.
