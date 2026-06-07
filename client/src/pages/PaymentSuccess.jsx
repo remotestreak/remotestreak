@@ -59,10 +59,10 @@ export default function PaymentSuccess() {
             <div className="bg-[#111827] border border-[#1E293B] rounded-xl p-4 mb-6">
               <p className="text-[#00E5A0] font-mono text-sm">
                 {plan === "streak_starter"
-                  ? "Streak Starter — $12/month"
+                  ? "Streak Starter — ₦18,000/month"
                   : plan === "streak_core"
-                    ? "Streak Core — $25/month"
-                    : "Streak Pro — $45/month"}
+                    ? "Streak Core — ₦37,500/month"
+                    : "Streak Pro — ₦67,500/month"}
               </p>
             </div>
             <p className="text-[#8A9BB0] text-sm">
