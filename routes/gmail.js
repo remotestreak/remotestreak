@@ -24,6 +24,10 @@ const verifyToken = async (req, res, next) => {
   next();
 };
 
+router.get('/test', (req, res) => {
+  res.json({ ok: true, message: 'Gmail routes are reachable', timestamp: new Date().toISOString() });
+});
+
 router.get('/connect', verifyToken, async (req, res) => {
   const callbackUrl = 'https://7b1fb97b-a071-4e3a-bf8e-54e97d032703-00-1p2nrmvk9uxhl.riker.replit.dev:3000/api/gmail/callback'
 
@@ -46,8 +50,11 @@ router.get('/connect', verifyToken, async (req, res) => {
     state: req.user.id
   });
 
-  console.log('Gmail OAuth URL:', url)
-  console.log('Callback URL:', callbackUrl)
+  console.log('=== Gmail Connect ===')
+  console.log('Callback URL being used:', callbackUrl)
+  console.log('GOOGLE_CLIENT_ID set:', !!process.env.GOOGLE_CLIENT_ID)
+  console.log('GOOGLE_CLIENT_SECRET set:', !!process.env.GOOGLE_CLIENT_SECRET)
+  console.log('Full OAuth URL:', url)
 
   res.json({ url });
 });
