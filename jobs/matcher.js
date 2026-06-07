@@ -46,7 +46,7 @@ const findMatchesForUser = async (userId) => {
 
   const { data: jobs, error: jobsErr } = await supabase
     .from('job_opportunities')
-    .select('id, title, description, company_name')
+    .select('id, title, description, company_name, source_url, source_tag')
     .eq('status', 'active')
     .eq('screening_passed', true);
 
@@ -72,7 +72,14 @@ const findMatchesForUser = async (userId) => {
       matches.push({
         user_id: userId,
         opportunity_id: job.id,
-        match_score: score
+        match_score: score,
+        opportunity: {
+          id: job.id,
+          title: job.title,
+          company_name: job.company_name,
+          source_url: job.source_url,
+          source_tag: job.source_tag
+        }
       });
     }
   }

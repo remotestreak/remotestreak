@@ -33,7 +33,10 @@ export default function Dashboard() {
         const gmailRes = await axios.get('/api/gmail/status', {
           headers: { Authorization: `Bearer ${token}` }
         }).catch(() => ({ data: { connected: false } }))
-        setData(prev => ({ ...res.data, gmail: gmailRes.data }))
+        const matchesRes = await axios.get('/api/dashboard/matches', {
+          headers: { Authorization: `Bearer ${token}` }
+        }).catch(() => ({ data: { matches: [], count: 0 } }))
+        setData(prev => ({ ...res.data, gmail: gmailRes.data, matches: matchesRes.data.matches, matchCount: matchesRes.data.count }))
         setLoading(false)
       } catch {
         navigate('/login')
@@ -216,6 +219,33 @@ export default function Dashboard() {
                   }`}>
                     {app.status}
                   </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Matched Jobs */}
+        <div className="bg-[#111827] border border-[#1E293B] rounded-2xl p-6 mt-6">
+          <h2 className="font-syne font-bold text-lg mb-6">
+            Matched Jobs ({data?.matchCount || 0})
+          </h2>
+          {!data?.matches?.length ? (
+            <div className="text-center py-8">
+              <p className="text-[#8A9BB0] text-sm">No matches yet — your agent is scanning jobs</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {data.matches.slice(0, 10).map((match, i) => (
+                <div key={i} className="flex items-center justify-between bg-[#0A0F1E] rounded-xl p-4">
+                  <div>
+                    <p className="font-semibold text-sm">{match.opportunity?.title || 'Remote Role'}</p>
+                    <p className="text-[#8A9BB0] text-xs mt-1">{match.opportunity?.company_name || 'Company'}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[#00E5A0] text-xs font-mono">{match.match_score}% match</span>
+                    <span className="text-xs px-3 py-1 rounded-full bg-[#1E293B] text-[#8A9BB0]">Pending</span>
+                  </div>
                 </div>
               ))}
             </div>
