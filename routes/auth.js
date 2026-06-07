@@ -84,32 +84,29 @@ router.post("/logout", async (req, res) => {
   }
 });
 
-// GOOGLE OAUTH — upsert user profile (called from frontend after OAuth callback)
 router.post('/google-user', async (req, res) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
-  if (!token) return res.status(401).json({ error: 'No token provided' });
-
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  
   try {
     const { data, error } = await supabase.auth.getUser(token);
     if (error) throw error;
-
-    const user = data.user;
-    const full_name = user.user_metadata?.full_name || user.user_metadata?.name || '';
-    const email = user.email;
-
-    const { error: upsertError } = await supabase.from('users').upsert({
-      id: user.id,
-      email,
-      full_name,
-      tier: 'streak_starter',
-      subscription_status: 'inactive',
-      credit_balance: 0,
-      linkedin_url: 'pending',
-    }, { onConflict: 'id', ignoreDuplicates: true });
-
+    
+    const { error: upsertError } = await supabase
+      .from('users')
+      .upsert({
+        id: data.user.id,
+        email: data.user.email,
+        full_name: data.user.user_metadata?.full_name || data.user.email,
+        tier: 'streak_starter',
+        subscription_status: 'inactive',
+        credit_balance: 0,
+        linkedin_url: 'pending'
+      }, { onConflict: 'id' });
+    
     if (upsertError) throw upsertError;
-
-    res.json({ message: 'User profile ready', user });
+    
+    res.json({ success: true, user: data.user });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
