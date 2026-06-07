@@ -54,6 +54,14 @@ try {
   console.error("❌ Paystack routes failed:", err.message);
 }
 
+try {
+  const gmailRoutes = require('./routes/gmail');
+  app.use('/api/gmail', gmailRoutes);
+  console.log('✅ Gmail routes loaded');
+} catch (err) {
+  console.error('❌ Gmail routes failed:', err.message);
+}
+
 app.use(express.static(path.join(__dirname, "client/dist")));
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "client/dist/index.html"));
