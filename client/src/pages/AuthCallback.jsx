@@ -7,51 +7,43 @@ export default function AuthCallback() {
   const [status, setStatus] = useState('Completing sign in...')
 
   useEffect(() => {
-    console.log('AuthCallback loaded')
-    console.log('Full URL:', window.location.href)
-    console.log('Hash:', window.location.hash)
-    console.log('Search:', window.location.search)
+    const handleCallback = async () => {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 1000))
 
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      console.log('Session:', session)
-      console.log('Error:', error)
+        const { data: { session }, error } = await supabase.auth.getSession()
 
-      if (session) {
-        const plan = localStorage.getItem('remotestreak_selected_plan')
-        console.log('Plan from localStorage:', plan)
+        if (error || !session) {
+          setStatus('Sign in failed. Redirecting...')
+          setTimeout(() => navigate('/login'), 2000)
+          return
+        }
+
         localStorage.setItem('remotestreak_token', session.access_token)
+        localStorage.setItem('remotestreak_user', JSON.stringify(session.user))
 
-        fetch('/api/auth/google-user', {
+        await fetch('/api/auth/google-user', {
           method: 'POST',
-          headers: { Authorization: `Bearer ${session.access_token}` }
-        }).then(() => {
-          if (plan) {
-            window.location.href = `/signup?plan=${plan}&authenticated=true`
-          } else {
-            window.location.href = '/dashboard'
+          headers: {
+            Authorization: `Bearer ${session.access_token}`
           }
         })
-      } else {
-        supabase.auth.onAuthStateChange((event, session) => {
-          console.log('Auth event:', event, session)
-          if (event === 'SIGNED_IN' && session) {
-            const plan = localStorage.getItem('remotestreak_selected_plan')
-            localStorage.setItem('remotestreak_token', session.access_token)
 
-            fetch('/api/auth/google-user', {
-              method: 'POST',
-              headers: { Authorization: `Bearer ${session.access_token}` }
-            }).then(() => {
-              if (plan) {
-                window.location.href = `/signup?plan=${plan}&authenticated=true`
-              } else {
-                window.location.href = '/dashboard'
-              }
-            })
-          }
-        })
+        const savedPlan = sessionStorage.getItem('rs_plan') || localStorage.getItem('remotestreak_selected_plan')
+
+        if (savedPlan) {
+          sessionStorage.removeItem('rs_plan')
+          navigate(`/signup?plan=${savedPlan}&authenticated=true`)
+        } else {
+          navigate('/dashboard')
+        }
+      } catch (err) {
+        console.error('Callback error:', err)
+        navigate('/login')
       }
-    })
+    }
+
+    handleCallback()
   }, [])
 
   return (
