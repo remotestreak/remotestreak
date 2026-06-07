@@ -7,38 +7,49 @@ export default function AuthCallback() {
   const [status, setStatus] = useState('Completing sign in...')
 
   useEffect(() => {
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
+    console.log('AuthCallback loaded')
+    console.log('Full URL:', window.location.href)
+    console.log('Hash:', window.location.hash)
+    console.log('Search:', window.location.search)
+
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      console.log('Session:', session)
+      console.log('Error:', error)
+
+      if (session) {
+        const plan = localStorage.getItem('remotestreak_selected_plan')
+        console.log('Plan from localStorage:', plan)
         localStorage.setItem('remotestreak_token', session.access_token)
-        localStorage.setItem('remotestreak_user', JSON.stringify(session.user))
 
-        try {
-          await fetch('/api/auth/google-user', {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${session.access_token}`
-            }
-          })
-        } catch (e) {}
+        fetch('/api/auth/google-user', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${session.access_token}` }
+        }).then(() => {
+          if (plan) {
+            window.location.href = `/signup?plan=${plan}&authenticated=true`
+          } else {
+            window.location.href = '/dashboard'
+          }
+        })
+      } else {
+        supabase.auth.onAuthStateChange((event, session) => {
+          console.log('Auth event:', event, session)
+          if (event === 'SIGNED_IN' && session) {
+            const plan = localStorage.getItem('remotestreak_selected_plan')
+            localStorage.setItem('remotestreak_token', session.access_token)
 
-        const cookies = document.cookie.split(';').reduce((acc, c) => {
-          const [k, v] = c.trim().split('=')
-          acc[k] = v
-          return acc
-        }, {})
-
-        const plan = cookies['rs_plan'] || localStorage.getItem('remotestreak_selected_plan')
-
-        if (plan) {
-          document.cookie = 'rs_plan=;path=/;max-age=0'
-          navigate(`/signup?plan=${plan}&authenticated=true`)
-        } else {
-          navigate('/dashboard')
-        }
-      }
-
-      if (event === 'SIGNED_OUT') {
-        navigate('/signup')
+            fetch('/api/auth/google-user', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${session.access_token}` }
+            }).then(() => {
+              if (plan) {
+                window.location.href = `/signup?plan=${plan}&authenticated=true`
+              } else {
+                window.location.href = '/dashboard'
+              }
+            })
+          }
+        })
       }
     })
   }, [])
