@@ -78,4 +78,15 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
+// GET MATCHES FOR USER
+router.get('/matches', verifyToken, async (req, res) => {
+  try {
+    const matcher = require('../jobs/matcher');
+    const matches = await matcher.findMatchesForUser(req.user.id);
+    res.json({ matches, count: matches.length });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
 module.exports = router;
