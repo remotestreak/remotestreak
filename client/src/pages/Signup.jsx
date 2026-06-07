@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { supabase } from "../supabaseClient";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -82,6 +83,30 @@ export default function Signup() {
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        localStorage.setItem('remotestreak_token', session.access_token)
+        localStorage.setItem('remotestreak_user', JSON.stringify(session.user))
+
+        await fetch('/api/auth/google-user', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`
+          }
+        })
+
+        const savedPlan = localStorage.getItem('remotestreak_selected_plan')
+        if (savedPlan) {
+          setSelectedPlan(savedPlan)
+          setStep(3)
+        } else {
+          setStep(2)
+        }
+      }
+    })
+  }, [])
 
   return (
     <div className="min-h-screen bg-[#0A0F1E] flex items-center justify-center px-4 py-12">
