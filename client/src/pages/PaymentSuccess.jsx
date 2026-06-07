@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 export default function PaymentSuccess() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const [status, setStatus] = useState("verifying");
   const [plan, setPlan] = useState("");
 
   useEffect(() => {
-    const reference = searchParams.get("reference");
+    const params = new URLSearchParams(window.location.search);
+    const reference = params.get("reference");
     const token = localStorage.getItem("remotestreak_token");
 
     if (!reference || !token) {
